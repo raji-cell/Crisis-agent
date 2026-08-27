@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crisis Operations Command Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#ef4444', 600: '#dc2626' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="h-9 w-9 bg-red-600/20 border border-red-500/50 rounded-lg flex items-center justify-center text-red-500 font-bold">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div>
+          <h1 class="font-bold tracking-tight text-white leading-none">CRISIS OPS AGENT</h1>
+          <p class="text-xs text-slate-400 mt-0.5">Autonomous Multi-Agent Triage Engine</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+          Telemetry Live
+        </span>
+        <button onclick="fetchIncidents()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Left Column: Manual Incident Injection -->
+    <div class="space-y-6">
+      <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5 backdrop-blur">
+        <div class="flex items-center space-x-2 text-slate-200 font-semibold mb-4">
+          <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+          <h2>Inject Incident Signal</h2>
+        </div>
+        <form id="incidentForm" onsubmit="submitIncident(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Location / Zone</label>
+            <input type="text" id="location" required placeholder="e.g. Chemical Bay 3, Floor 2" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-red-500 transition" />
+          </div>
+          <div>
+            <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Telemetry / Dispatch Report</label>
+            <textarea id="message" required rows="4" placeholder="Describe the incident telemetry or sensor signal..." class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:border-red-500 transition"></textarea>
+          </div>
+          <button type="submit" id="submitBtn" class="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg text-sm transition flex items-center justify-center space-x-2 shadow-lg shadow-red-600/20">
+            <span>Run Agent Triage & Dispatch</span>
+            <i class="fa-solid fa-arrow-right text-xs"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- System Architecture Specs -->
+      <div class="bg-slate-900/30 border border-slate-800 rounded-xl p-5 text-xs text-slate-400 space-y-2">
+        <div class="font-semibold text-slate-200 mb-2">Connected Subsystems</div>
+        <div class="flex justify-between py-1 border-b border-slate-800/60">
+          <span>Vector Memory</span>
+          <span class="text-slate-200 font-mono">Qdrant + FastEmbed</span>
+        </div>
+        <div class="flex justify-between py-1 border-b border-slate-800/60">
+          <span>Safety Guardrails</span>
+          <span class="text-slate-200 font-mono">Enkrypt AI (Strict)</span>
+        </div>
+        <div class="flex justify-between py-1">
+          <span>Audit Persistence</span>
+          <span class="text-slate-200 font-mono">SQLite (ACID Compliant)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Live Incident Log Stream -->
+    <div class="lg:col-span-2 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold text-slate-200 flex items-center space-x-2">
+          <i class="fa-solid fa-clock-rotate-left text-slate-400"></i>
+          <span>Real-Time Operations Feed</span>
+        </h2>
+        <span id="logCount" class="text-xs text-slate-500 font-mono">0 Incidents Logged</span>
+      </div>
+
+      <div id="incidentsList" class="space-y-4">
+        <!-- Incidents will be populated here dynamically -->
+      </div>
+    </div>
+  </main>
+
+  <script>
+    async function fetchIncidents() {
+      try {
+        const res = await fetch('/api/v1/incidents/history?limit=15');
+        const data = await res.json();
+        const list = document.getElementById('incidentsList');
+        document.getElementById('logCount').textContent = `${data.length} Incidents Logged`;
+
+        if (!data.length) {
+          list.innerHTML = `<div class="p-8 text-center text-slate-500 bg-slate-900/20 border border-slate-800 rounded-xl">No crisis incidents logged yet. Inject a signal to test.</div>`;
+          return;
+        }
+
+        list.innerHTML = data.map(inc => {
+          const plan = inc.action_plan;
+          const severityColors = {
+            5: 'bg-red-500/10 text-red-400 border-red-500/20',
+            4: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+            3: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+            2: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+            1: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+          }[inc.severity] || 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+
+          const actionsHtml = plan.immediate_actions.map(act => `
+            <div class="flex items-start space-x-2 text-xs py-1 border-t border-slate-800/40">
+              <span class="font-mono uppercase px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">${act.assigned_unit}</span>
+              <span class="text-slate-300 flex-1">${act.action}</span>
+            </div>
+          `).join('');
+
+          return `
+            <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5 backdrop-blur hover:border-slate-700 transition space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                  <span class="px-2 py-0.5 rounded text-xs font-mono font-bold border ${severityColors}">
+                    SEV-${inc.severity}
+                  </span>
+                  <span class="font-semibold text-white">${inc.location}</span>
+                  <span class="text-xs uppercase px-2 py-0.5 rounded bg-slate-800/80 text-slate-400 font-mono">${inc.type}</span>
+                </div>
+                <span class="text-xs text-slate-500 font-mono">${new Date(inc.timestamp).toLocaleTimeString()}</span>
+              </div>
+              <p class="text-sm text-slate-300">${plan.summary}</p>
+              <div class="bg-slate-950/60 rounded-lg p-3 border border-slate-800/50 space-y-1">
+                <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Dispatched Actions</span>
+                  ${inc.evacuation_required ? '<span class="text-red-400 font-bold">⚠️ EVACUATION ORDERED</span>' : ''}
+                </div>
+                ${actionsHtml}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("Failed to load history", err);
+      }
+    }
+
+    async function submitIncident(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Analyzing...</span>`;
+
+      const payload = {
+        location: document.getElementById('location').value,
+        message: document.getElementById('message').value,
+        source: 'dashboard_manual_entry'
+      };
+
+      try {
+        const res = await fetch('/api/v1/incidents/triage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          document.getElementById('incidentForm').reset();
+          await fetchIncidents();
+        } else {
+          alert('Triage failed: ' + (await res.text()));
+        }
+      } catch (err) {
+        alert('Network error connecting to API');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Run Agent Triage & Dispatch</span><i class="fa-solid fa-arrow-right text-xs"></i>`;
+      }
+    }
+
+    // Auto-fetch on page load and poll every 4 seconds
+    fetchIncidents();
+    setInterval(fetchIncidents, 4000);
+  </script>
+</body>
+</html>
